@@ -4,10 +4,13 @@ import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
@@ -15,6 +18,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.tanfulun.test_qiniu.utils.Auth;
@@ -24,10 +28,18 @@ import com.qiniu.android.storage.UploadManager;
 
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.ref.WeakReference;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -38,9 +50,15 @@ import pub.devrel.easypermissions.EasyPermissions;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private static String AccessKey = "IaWG3RLt_co1e5nCvnNjIReVPSL3zANu7nL3-6bu";//此处填你自己的AccessKey
     private static String SecretKey = "Iu5Vs4BMcC2HA3GVz5YmUxpwMYc2sSXX7Q4AvCxb";//此处填你自己的SecretKey
+    private static String Qiniu_Image_Server_URL = "http://pby8k3kvk.bkt.clouddn.com/";
+
     private static final String TAG = "MainActivity";
-    private ImageView avatar;
+    private ImageView avatar_full_iv;
+    private ImageView avatar_crop;
+    private TextView result_tv;
+
     private Uri imageUri;
+
     private static final int REQUEST_CAPTURE = 2;
     private static final int REQUEST_PICTURE = 5;
     private static final int RESULT_CROP = 7;
@@ -50,7 +68,40 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Button upload;
 
 
-    private Uri localUri = null;
+    private Uri localUri = null; // 本地相册中，被选中的原始图片；
+    private String recognition_results = null; // 图片识别返回的结果；
+    private String pic_qiniu_url = null;
+
+    // 用于刷新界面
+    private Handler mhandler = new Handler() {
+        @Override
+        public void handleMessage(android.os.Message msg) {
+            switch (msg.what) {
+                case 0x001:
+                    result_tv.setText(recognition_results);
+                    Toast.makeText(MainActivity.this, "图片加载完毕", Toast.LENGTH_SHORT).show();
+                    break;
+                case 0x002:
+                    result_tv.setText("图片链接为空");
+                    break;
+                case 0x003:
+                    avatar_full_iv.setImageURI(localUri);
+
+                    //Uri cropPicUri = Uri.fromFile(getOutputMediaFile());
+
+                    String pic_path = getOutputMediaPath();
+
+                    Bitmap bmImg = BitmapFactory.decodeFile(pic_path);
+
+                    //avatar_crop.setImageURI(cropPicUri);
+                    avatar_crop.setImageBitmap(bmImg);
+
+                    break;
+                default:
+                    break;
+            }
+        };
+    };
 
     // 重用uploadManager。一般地，只需要创建一个uploadManager对象
     // UploadManager uploadManager = new UploadManager(config);
@@ -58,7 +109,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        avatar = (ImageView) findViewById(R.id.avatar);
+        avatar_full_iv = (ImageView) findViewById(R.id.avatar_full);
+        avatar_crop = (ImageView) findViewById(R.id.avatar_crop);
+        result_tv = (TextView)findViewById(R.id.results);
         fromCarame = (Button) findViewById(R.id.carame);
         fromCarame.setOnClickListener(this);
         fromGarllary = (Button) findViewById(R.id.select_img);
@@ -80,7 +133,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void openCamera() {  //调用相机拍照
+    /**
+     * 调用相机拍照
+     *
+     * */
+    private void openCamera() {
         Intent intent = new Intent();
         File file = getOutputMediaFile(); //工具类稍后会给出
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {  //针对Android7.0，需要通过FileProvider封装过的路径，提供给外部调用
@@ -107,7 +164,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK) {
-            Log.e("##tanfulun", "onActivityResult-resultCode: " + requestCode);
+            Log.e("##tanfulun", "onActivityResult-requestCode: " + requestCode);
             switch (requestCode) {
                 case REQUEST_CAPTURE:
                     if (null != imageUri) {
@@ -121,16 +178,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     break;
                 case RESULT_CROP:
                     Bundle extras = data.getExtras();
-                    Bitmap selectedBitmap = extras.getParcelable("data");
-                    //判断返回值extras是否为空，为空则说明用户截图没有保存就返回了，此时应该用上一张图，
-                    //否则就用用户保存的图
+                    //判断返回值extras是否为空，
+                    // 为空则说明用户截图没有保存就返回了；理论上，android不希望通过intent传递裁剪的图片，所以此时返回必定为空；
+                    // 否则就用用户保存的图,图片保存位置通过调用"getOutputMediaFile()"函数获取；
                     if (extras == null) {
-                        // avatar.setImageBitmap(mBitmap);
-                        // storeImage(mBitmap);
+                        Log.i("##tanfulun", "onActivityResult: RESULT_CROP--extras == null");
                     } else {
-                        avatar.setImageBitmap(selectedBitmap);
-                        storeImage(selectedBitmap);
+                        Log.i("##tanfulun", "onActivityResult: RESULT_CROP--extras != null");
                     }
+                    // get cropped image and show on imageView
+                    File pictureFile = getOutputMediaFile();
+                    if (pictureFile == null) {
+                        Log.d("##tanfulun",
+                                "Error creating media file, check storage permissions: ");
+                        return;
+                    }
+
+                    mhandler.sendEmptyMessage(0x003);
+
                     break;
                 case GALLERY_ACTIVITY_CODE:
                     // 从相册中选择图片返回的intent
@@ -150,9 +215,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    //裁剪图片
+    /**
+     * 裁剪图片
+     */
     private void performCrop(Uri uri) {
         try {
+            // del old image
+            delCropPic();
+
+            // start crop image
             Intent intent = new Intent("com.android.camera.action.CROP");
             /*
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -162,7 +233,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             }
             */
-
             intent.setDataAndType(uri, "image/*");
             // 下面这个crop = true是设置在开启的Intent中设置显示的VIEW可裁剪
             intent.putExtra("crop", "true");
@@ -170,8 +240,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             intent.putExtra("aspectX", 1);
             intent.putExtra("aspectY", 1);
             // outputX outputY 是裁剪图片宽高
-            intent.putExtra("outputX", 300);
-            intent.putExtra("outputY", 300);
+            intent.putExtra("outputX", 600);
+            intent.putExtra("outputY", 600);
             //裁剪时是否保留图片的比例，这里的比例是1:1
             intent.putExtra("scale", true);
             //是否将数据保留并返回 TODO:这一步会造成代码闪退，具体解释可以google.
@@ -197,37 +267,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    // 这是原版到图片裁剪代码，有bug
-    private void performCrop_old(Uri uri) {
-
-        try {
-            Intent intent = new Intent("com.android.camera.action.CROP");
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                grantUriPermission("com.android.camera", uri,
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            }
-            intent.setDataAndType(uri, "image/*");
-            intent.putExtra("crop", "true");
-            intent.putExtra("aspectX", 1);
-            intent.putExtra("aspectY", 1);
-            intent.putExtra("outputX", 300);
-            intent.putExtra("outputY", 300);
-            intent.putExtra("return-data", true);
-            intent.putExtra(MediaStore.EXTRA_OUTPUT, getOutputMediaFile().toString());
-            startActivityForResult(intent, RESULT_CROP);
-        } catch (ActivityNotFoundException anfe) {
-            String errorMessage = "你的设备不支持裁剪行为！";
-            Toast toast = Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT);
-            toast.show();
-
-            Log.e("##tanfulun", "你的设备不支持裁剪行为");
-        }
-    }
-
-    //建立保存头像的路径及名称
+    /**
+     * 建立保存图像的路径及名称,并建立一个图像文件实例.
+     * */
     private File getOutputMediaFile() {
+
+        String mImageName = "avatar.png"; // names of local cropped image
+
         File mediaStorageDir = new File(Environment.getExternalStorageDirectory()
                 + "/Android/data/"
                 + getApplicationContext().getPackageName()
@@ -237,13 +283,56 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return null;
             }
         }
+
         File mediaFile;
-        String mImageName = "avatar.png";
         mediaFile = new File(mediaStorageDir.getPath() + File.separator + mImageName);
         return mediaFile;
     }
 
-    //保存图像
+    private String getOutputMediaPath() {
+
+        String mImageName = "avatar.png"; // names of local cropped image
+
+        String picPath = Environment.getExternalStorageDirectory()
+                + "/Android/data/"
+                + getApplicationContext().getPackageName()
+                + "/Files"
+                + "/"
+                + mImageName;
+
+        return picPath;
+    }
+
+    /**
+     * 删除剪切的图像
+     * */
+    private int delCropPic(){
+        String mImageName = "avatar.png"; // names of local cropped image
+
+        File mediaStorageDir = new File(Environment.getExternalStorageDirectory()
+                + "/Android/data/"
+                + getApplicationContext().getPackageName()
+                + "/Files");
+
+        // del "avatar.png" if it is already exist
+        File old_image_file = new File(mediaStorageDir.getPath() + File.separator + mImageName);
+        if (old_image_file.exists()) {
+            Log.i("##tanfulun", mImageName+" is already exist!");
+            //删除系统缩略图
+            getContentResolver().delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    MediaStore.Images.Media.DATA + "=?", new String[]{old_image_file.getPath()});
+            old_image_file.delete();
+            Log.i("##tanfulun", mImageName+"and its thumbnail image are del!");
+        }else {
+            return 0;
+        }
+
+        return 1;
+    }
+
+    /**
+     * 保存图像
+     */
     private void storeImage(Bitmap image) {
         File pictureFile = getOutputMediaFile();
         if (pictureFile == null) {
@@ -285,6 +374,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
+    /**
+     * 上传图片到qiniu服务器
+     * */
     private void uploadImg2QiNiu() {
         UploadManager uploadManager = new UploadManager();
         // 设置图片名字
@@ -292,23 +384,118 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         String key = "icon_" + sdf.format(new Date());
         String picPath = getOutputMediaFile().toString();
         Log.i(TAG, "picPath: " + picPath);
-        uploadManager.put(picPath, key, Auth.create(AccessKey, SecretKey).uploadToken("image-server"), new UpCompletionHandler() {
+        String token = Auth.create(AccessKey, SecretKey).uploadToken("image-server");
+        uploadManager.put(picPath, key, token, new UpCompletionHandler() {
             @Override
             public void complete(String key, ResponseInfo info, JSONObject res) {
                 // info.error中包含了错误信息，可打印调试
                 // 上传成功后将key值上传到自己的服务器
+                String headpicPath = null;
                 if (info.isOK()) {
                     Log.i(TAG, "token===" + Auth.create(AccessKey, SecretKey).uploadToken("photo"));
-                    String headpicPath = "http://ot6991tvl.bkt.clouddn.com/" + key;
-                    Log.i(TAG, "complete: " + headpicPath);
+                    headpicPath = Qiniu_Image_Server_URL + key;
+                    Log.i(TAG, "complete: image_url" + headpicPath);
                 }
-                //上传至阡陌链接
-                //     uploadpictoQianMo(headpicPath, picPath);
+                // 调用图片识别服务
+                if(headpicPath == null){
+                    Log.i("##tanfulun", "image uri from qiniu is null");
+                    new Thread() {
+                        public void run() {
+                            mhandler.sendEmptyMessage(0x002);
+                        };
+                    }.start();
+                }else {
+                    Log.i("##tanfulun", "call image_recognition()");
+                    pic_qiniu_url = headpicPath;
+                    image_recognition();
+                }
 
             }
         }, null);
     }
 
+    /**
+     * 识别url指向到图片
+     * */
+    private void image_recognition(){
+        // 测试接口以及方法
+        // curl -X POST http://47.93.252.203:8080/hello
+
+        // 识别接口以及方法
+        // curl -H "Content-Type:application/json" -X POST --data '{"image_path":"xxxxxx"}' http://47.93.252.203:8080/cnn_cls/vispred
+        new Thread() {
+            public void run() {
+                try {
+                    Log.i("##tanfulun", "image_recognition run(): http post start");
+                    LoginByPost();
+                } catch (Exception e) {
+                    Log.i("##tanfulun", "image_recognition run(): http post fail");
+                    e.printStackTrace();
+                }
+                mhandler.sendEmptyMessage(0x001);
+            };
+        }.start();
+        Log.i("##tanfulun", "image recognition done");
+    }
+
+    /**
+     * 向图片识别服务器发出POST请求
+     * */
+    private void LoginByPost() {
+        String LOGIN_URL = "http://47.93.252.203:8080/cnn_cls/vispred";
+        String TEST_URL = "http://47.93.252.203:8080/hello";
+        String msg = "";
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(LOGIN_URL).openConnection();
+            // 设置请求方式,请求超时信息
+            conn.setRequestMethod("POST");
+            //conn.setReadTimeout(5000);
+            conn.setConnectTimeout(5000);
+            // 设置运行输入,输出:
+            conn.setDoOutput(true);
+            //conn.setDoInput(true);
+            // Post方式不能缓存,需手动设置为false
+            conn.setUseCaches(false);
+            // 我们请求的数据:
+            String data = "{\"image_path\":\""+pic_qiniu_url+"\"}";
+            Log.i("##tanfulun", "data: "+ data);
+            // 这里可以写一些请求头的东东...
+            conn.setRequestProperty("Content-Type","application/json");
+
+            // 获取输出流
+            OutputStream out = conn.getOutputStream();
+            out.write(data.getBytes());
+            out.flush();
+            if (conn.getResponseCode() == 200) {
+                Log.i("##tanfulun", "LoginByPost: Post success");
+                // 获取响应的输入流对象
+                InputStream is = conn.getInputStream();
+                // 创建字节输出流对象
+                ByteArrayOutputStream message = new ByteArrayOutputStream();
+                // 定义读取的长度
+                int len = 0;
+                // 定义缓冲区
+                byte buffer[] = new byte[1024];
+                // 按照缓冲区的大小，循环读取
+                while ((len = is.read(buffer)) != -1) {
+                    // 根据读取的长度写入到os对象中
+                    message.write(buffer, 0, len);
+                }
+                // 释放资源
+                is.close();
+                message.close();
+                // 返回字符串
+                msg = new String(message.toByteArray());
+                recognition_results = msg;
+            }
+            else {
+                Log.i("##tanfulun", "LoginByPost: Post failed");
+            }
+        } catch (Exception e) {
+            recognition_results = "http post Exception";
+            e.printStackTrace();
+        }
+    }
 
 }
 

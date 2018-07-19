@@ -31,15 +31,61 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="2dp"
         android:text="上传头像"
         android:id="@+id/upload_img"
-        android:layout_height="wrap_content" />
-
-    <ImageView
-        android:id="@+id/avatar"
-        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center" />
+        />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="10dp"
+        android:id="@+id/image_preview_ll"
+        >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="left"
+            android:text="full_image"
+            android:textSize="10dp" />
+
+        <ImageView
+            android:id="@+id/avatar_full"
+            android:layout_width="wrap_content"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="left"
+            android:layout_marginTop="10dp"
+            android:text="cropped_image"
+            android:textSize="10dp" />
+
+        <ImageView
+            android:id="@+id/avatar_crop"
+            android:layout_width="wrap_content"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:id="@+id/results"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:layout_marginTop="5dp"
+            android:background="@android:color/darker_gray"
+            android:gravity="center"
+            android:text="recognition results"
+            android:textSize="20dp" />
+
+    </LinearLayout>
+
 
 </LinearLayout>
