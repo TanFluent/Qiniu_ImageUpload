@@ -2,6 +2,7 @@ package com.example.tanfulun.test_qiniu;
 
 import android.Manifest;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -10,7 +11,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.Message;
 import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
@@ -35,13 +35,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
@@ -53,11 +51,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static String Qiniu_Image_Server_URL = "http://pby8k3kvk.bkt.clouddn.com/";
 
     private static final String TAG = "MainActivity";
-    private ImageView avatar_full_iv;
+    //private ImageView avatar_full_iv;
     private ImageView avatar_crop;
     private TextView result_tv;
-
-    private Uri imageUri;
 
     private static final int REQUEST_CAPTURE = 2;
     private static final int REQUEST_PICTURE = 5;
@@ -67,7 +63,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Button fromGarllary;
     private Button upload;
 
-
+    private Uri cameraImageUri=null; // 拍照获取的图片
+    private String cameraImagePath;
     private Uri localUri = null; // 本地相册中，被选中的原始图片；
     private String recognition_results = null; // 图片识别返回的结果；
     private String pic_qiniu_url = null;
@@ -85,17 +82,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     result_tv.setText("图片链接为空");
                     break;
                 case 0x003:
-                    avatar_full_iv.setImageURI(localUri);
-
-                    //Uri cropPicUri = Uri.fromFile(getOutputMediaFile());
-
                     String pic_path = getOutputMediaPath();
-
                     Bitmap bmImg = BitmapFactory.decodeFile(pic_path);
-
-                    //avatar_crop.setImageURI(cropPicUri);
                     avatar_crop.setImageBitmap(bmImg);
-
                     break;
                 default:
                     break;
@@ -109,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        avatar_full_iv = (ImageView) findViewById(R.id.avatar_full);
+        //avatar_full_iv = (ImageView) findViewById(R.id.avatar_full);
         avatar_crop = (ImageView) findViewById(R.id.avatar_crop);
         result_tv = (TextView)findViewById(R.id.results);
         fromCarame = (Button) findViewById(R.id.carame);
@@ -141,15 +130,85 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Intent intent = new Intent();
         File file = getOutputMediaFile(); //工具类稍后会给出
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {  //针对Android7.0，需要通过FileProvider封装过的路径，提供给外部调用
-            imageUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", file);//通过FileProvider创建一个content类型的Uri，进行封装
+            cameraImageUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", file);//通过FileProvider创建一个content类型的Uri，进行封装
         } else { //7.0以下，如果直接拿到相机返回的intent值，拿到的则是拍照的原图大小，很容易发生OOM，所以我们同样将返回的地址，保存到指定路径，返回到Activity时，去指定路径获取，压缩图片
 
-            imageUri = Uri.fromFile(file);
+            cameraImageUri = Uri.fromFile(file);
 
         }
         intent.setAction(MediaStore.ACTION_IMAGE_CAPTURE);//设置Action为拍照
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);//将拍取的照片保存到指定URI
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);//将拍取的照片保存到指定URI
         startActivityForResult(intent, REQUEST_CAPTURE);//启动拍照
+    }
+
+    private void takePictureFromCamera() {
+
+        String pictureName = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault()).format(new Date()) +
+                "-" + System.currentTimeMillis() + ".jpg";
+
+        cameraImagePath = pictureName;
+
+        File mOutputImage = new File(getExternalCacheDir(), pictureName);
+
+        Log.i("##tanfulun", "takePictureFromCamera: getExternalCacheDir = "+getExternalCacheDir());
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            cameraImageUri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider", mOutputImage);
+
+            Log.i("##tanfulun","takePictureFromCamera: "+cameraImageUri.getPath());
+        } else {
+            cameraImageUri = Uri.fromFile(mOutputImage);
+        }
+
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);
+        intent.putExtra("return-data", false);
+        intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
+        intent.putExtra("noFaceDetection", true);
+        ComponentName componentName = intent.resolveActivity(getPackageManager());
+        if (componentName != null) {
+            startActivityForResult(intent, REQUEST_CAPTURE);
+        }
+    }
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+        cameraImagePath = image.getAbsolutePath();
+        return image;
+    }
+
+
+    private void dispatchTakePictureIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        // Ensure that there's a camera activity to handle the intent
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+                Log.i("##tanfulun", "dispatchTakePictureIntent: createImageFile failed");
+            }
+            // Continue only if the File was successfully created
+            if (photoFile != null) {
+                cameraImageUri = FileProvider.getUriForFile(this,
+                        BuildConfig.APPLICATION_ID + ".provider",
+                        photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);
+                startActivityForResult(takePictureIntent, REQUEST_CAPTURE);
+            }
+        }
     }
 
     @Override
@@ -167,10 +226,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Log.e("##tanfulun", "onActivityResult-requestCode: " + requestCode);
             switch (requestCode) {
                 case REQUEST_CAPTURE:
-                    if (null != imageUri) {
-                        localUri = imageUri;
-                        performCrop(localUri);
+
+                    if (null != cameraImageUri) {
+                        Log.i("##tanfulun", "onActivityResult: cameraImageUri.path = "+cameraImageUri.getPath());
+
+                        performCrop(cameraImageUri);
+                    }else {
+                        Log.i("##tanfulun", "onActivityResult: cameraImageUri == null");
                     }
+
+                    /*
+                    try {
+                        //Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(cameraImageUri));
+                        //mImageView.setImageBitmap(bitmap);
+
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                    */
+
                     break;
                 case REQUEST_PICTURE:
                     localUri = data.getData();
@@ -193,9 +267,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 "Error creating media file, check storage permissions: ");
                         return;
                     }
-
                     mhandler.sendEmptyMessage(0x003);
-
                     break;
                 case GALLERY_ACTIVITY_CODE:
                     // 从相册中选择图片返回的intent
@@ -225,27 +297,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             // start crop image
             Intent intent = new Intent("com.android.camera.action.CROP");
-            /*
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 grantUriPermission("com.android.camera", uri,
                         Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             }
-            */
+
             intent.setDataAndType(uri, "image/*");
             // 下面这个crop = true是设置在开启的Intent中设置显示的VIEW可裁剪
             intent.putExtra("crop", "true");
             // aspectX aspectY 是宽高的比例，这里设置的是正方形（长宽比为1:1）
-            intent.putExtra("aspectX", 1);
-            intent.putExtra("aspectY", 1);
+            intent.putExtra("aspectX", 0.1);
+            intent.putExtra("aspectY", 0.1);
             // outputX outputY 是裁剪图片宽高
             intent.putExtra("outputX", 600);
             intent.putExtra("outputY", 600);
             //裁剪时是否保留图片的比例，这里的比例是1:1
             intent.putExtra("scale", true);
             //是否将数据保留并返回 TODO:这一步会造成代码闪退，具体解释可以google.
-            // intent.putExtra("return-data", true);
+            intent.putExtra("return-data", false);
 
             // 获得 Uri 格式的图片数据
             Uri imageUri = Uri.fromFile(getOutputMediaFile());
@@ -364,7 +436,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.carame:
                 // 点击"开启相机拍照"按钮
-                openCamera();
+                //takePictureFromCamera();
+                //openCamera();
+                dispatchTakePictureIntent();
                 break;
             case R.id.upload_img:
                 // 点击"上传图片"按钮
