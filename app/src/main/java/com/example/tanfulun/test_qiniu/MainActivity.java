@@ -3,6 +3,7 @@ package com.example.tanfulun.test_qiniu;
 import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -23,10 +24,13 @@ import android.widget.Toast;
 
 import com.example.tanfulun.test_qiniu.utils.Auth;
 import com.example.tanfulun.test_qiniu.utils.ParseFilePath;
+import com.example.tanfulun.test_qiniu.utils.UnicodeUtils;
 import com.qiniu.android.http.ResponseInfo;
 import com.qiniu.android.storage.UpCompletionHandler;
 import com.qiniu.android.storage.UploadManager;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -39,9 +43,11 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
 
+import cz.msebera.android.httpclient.util.EncodingUtils;
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
 
@@ -70,6 +76,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String AlbumImagePath;
     private String recognition_results = null; // 图片识别返回的结果；
     private String pic_qiniu_url = null;
+
+    private String[] dataBaseClassNames;
 
     // 用于刷新界面
     private Handler mhandler = new Handler() {
@@ -110,6 +118,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         upload = (Button) findViewById(R.id.upload_img);
         upload.setOnClickListener(this);
         methodRequiresTwoPermission();
+
+        // get class name list
+        getClassName();
+
     }
 
     @AfterPermissionGranted(1)//添加注解，是为了首次执行权限申请后，回调该方法
@@ -324,8 +336,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             //intent.putExtra("aspectY", 0.1);
 
             // outputX outputY 是裁剪图片宽高
-            //intent.putExtra("outputX", 600);
-            //intent.putExtra("outputY", 600);
+            intent.putExtra("outputX", 600);
+            intent.putExtra("outputY", 600);
 
             //裁剪时是否保留图片的比例，这里的比例是1:1
             intent.putExtra("scale", true);
@@ -335,6 +347,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             // 获得 Uri 格式的图片数据
             Uri imageUri = Uri.fromFile(getOutputMediaFile());
+
+            intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
 
             //intent.putExtra(MediaStore.EXTRA_OUTPUT, getOutputMediaFile().toString());
 
@@ -448,14 +462,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 //gallery_Intent.setType("image/*");  // "image/*"表示所有类型的图片
                 gallery_Intent.setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*");
                 startActivityForResult(gallery_Intent, GALLERY_ACTIVITY_CODE);
+
+                // 清空recognition_results
+                result_tv.setText("请上传裁剪好的图片...");
+
                 break;
 
             case R.id.carame:
                 // 点击"开启相机拍照"按钮
                 dispatchTakePictureIntent();
+
+                // 清空recognition_results
+                result_tv.setText("请上传裁剪好的图片...");
+
                 break;
 
             case R.id.upload_img:
+                // 清空recognition_results
+                result_tv.setText("图片上传中...");
+
                 // 点击"上传图片"按钮
                 uploadImg2QiNiu();
                 break;
@@ -575,7 +600,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 message.close();
                 // 返回字符串
                 msg = new String(message.toByteArray());
-                recognition_results = msg;
+
+                //recognition_results = parseResponse(msg);
+                recognition_results = parseResponse(msg);
             }
             else {
                 Log.i("##tanfulun", "LoginByPost: Post failed");
@@ -583,6 +610,73 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } catch (Exception e) {
             recognition_results = "http post Exception";
             e.printStackTrace();
+        }
+    }
+
+    private String parseResponse(String msg){
+        String[] parsed_msg = null;
+        String[] parsed_msg_trim = null;
+        String parsed_response = "";
+
+        String msg1 = msg.replace("[","");
+        String msg2 = msg1.replace("]","");
+        String msg3 = msg2.replace(":",",");
+        String msg4 = msg3.replace("{","");
+        String msg5 = msg4.replace("}","");
+        String msg6 = msg5.replace("\"","");
+
+        parsed_msg = msg6.trim().split("\\s*,\\s*");
+
+        int cnt = 0;
+        String conf = null;
+
+        if("ok".equals(parsed_msg[1])){
+            for(String item : parsed_msg){
+                if(cnt>2){
+                    if(cnt%2==0){
+                        parsed_response = parsed_response + UnicodeUtils.unicodeToString(item)
+                                +"("
+                                + conf
+                                +")\n";
+                    }else{
+                        conf = item;
+                    }
+
+                }
+                cnt = cnt + 1;
+            }
+        }else{
+            Log.i("##tanfulun", "parseResponse:  status is not ok");
+            return "超出识别范围,请重新上传";
+        }
+        return parsed_response;
+    }
+
+    private void getClassName(){
+
+        String res="";
+        try{
+            //得到资源中的asset数据流
+            InputStream in = getResources().getAssets().open("6880.txt");
+
+            int length = in.available();
+            byte [] buffer = new byte[length];
+
+            in.read(buffer);
+            in.close();
+            res = EncodingUtils.getString(buffer, "UTF-8");
+            String[] classNames = res.split("\n");
+
+            dataBaseClassNames = classNames;
+
+            //Log.i("##tanfulun", "getClassName: res " + res);
+            //Log.i("##tanfulun", "getClassName: res[0] " + classNames[0]);
+
+        }catch(Exception e){
+
+            Log.i("##tanfulun", "readTxtFromAssets: failed");
+            e.printStackTrace();
+
         }
     }
 
