@@ -75,7 +75,7 @@
         android:layout_marginTop="5dp"
         android:background="@android:color/darker_gray"
         android:gravity="center"
-        android:text="识别结果"
+        android:text="拍摄图片或从相册中选择图片"
         android:textSize="20dp" />
 
 </RelativeLayout>

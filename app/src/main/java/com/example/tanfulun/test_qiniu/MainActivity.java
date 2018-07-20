@@ -95,6 +95,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     String pic_path = getOutputMediaPath();
                     Bitmap bmImg = BitmapFactory.decodeFile(pic_path);
                     avatar_crop.setImageBitmap(bmImg);
+
+                    uploadImg2QiNiu();
+
                     break;
                 default:
                     break;
@@ -120,7 +123,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         methodRequiresTwoPermission();
 
         // get class name list
-        getClassName();
+        //getClassName();
 
     }
 
@@ -140,51 +143,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * 调用相机拍照
      *
      * */
-    private void openCamera() {
-        Intent intent = new Intent();
-        File file = getOutputMediaFile(); //工具类稍后会给出
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {  //针对Android7.0，需要通过FileProvider封装过的路径，提供给外部调用
-            cameraImageUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", file);//通过FileProvider创建一个content类型的Uri，进行封装
-        } else { //7.0以下，如果直接拿到相机返回的intent值，拿到的则是拍照的原图大小，很容易发生OOM，所以我们同样将返回的地址，保存到指定路径，返回到Activity时，去指定路径获取，压缩图片
-
-            cameraImageUri = Uri.fromFile(file);
-
-        }
-        intent.setAction(MediaStore.ACTION_IMAGE_CAPTURE);//设置Action为拍照
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);//将拍取的照片保存到指定URI
-        startActivityForResult(intent, REQUEST_CAPTURE);//启动拍照
-    }
-
-    private void takePictureFromCamera() {
-
-        String pictureName = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault()).format(new Date()) +
-                "-" + System.currentTimeMillis() + ".jpg";
-
-        cameraImagePath = pictureName;
-
-        File mOutputImage = new File(getExternalCacheDir(), pictureName);
-
-        Log.i("##tanfulun", "takePictureFromCamera: getExternalCacheDir = "+getExternalCacheDir());
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            cameraImageUri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider", mOutputImage);
-
-            Log.i("##tanfulun","takePictureFromCamera: "+cameraImageUri.getPath());
-        } else {
-            cameraImageUri = Uri.fromFile(mOutputImage);
-        }
-
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);
-        intent.putExtra("return-data", false);
-        intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
-        intent.putExtra("noFaceDetection", true);
-        ComponentName componentName = intent.resolveActivity(getPackageManager());
-        if (componentName != null) {
-            startActivityForResult(intent, REQUEST_CAPTURE);
-        }
-    }
-
     private File createImageFile() throws IOException {
         // Create an image file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -464,7 +422,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 startActivityForResult(gallery_Intent, GALLERY_ACTIVITY_CODE);
 
                 // 清空recognition_results
-                result_tv.setText("请上传裁剪好的图片...");
+                result_tv.setText("图片上传中...");
 
                 break;
 
@@ -473,7 +431,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 dispatchTakePictureIntent();
 
                 // 清空recognition_results
-                result_tv.setText("请上传裁剪好的图片...");
+                result_tv.setText("图片上传中...");
 
                 break;
 
@@ -639,7 +597,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 + conf
                                 +")\n";
                     }else{
-                        conf = item;
+                        // 保留到小数点后两位
+                        conf = item.substring(0,4);
                     }
 
                 }
