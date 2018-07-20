@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="my_images" path="Android/data/com.example.tanfulun.test_qiniu/files/Pictures" />
-    <external-path path="." name="external_storage_root" />
+    <external-path name="camera_images" path="Android/data/com.example.tanfulun.test_qiniu/files/Pictures" />
+
+    <root-path path="" name="images"/>
 </paths>
