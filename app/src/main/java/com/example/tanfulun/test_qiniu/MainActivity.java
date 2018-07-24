@@ -614,7 +614,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             String s_norm_conf = Float.toString(norm_conf).substring(0,4);
 
 
-            parsed_response = parsed_response + arr_className.get(0)
+            parsed_response = parsed_response + arr_className.get(i)
                     +"("
                     + s_norm_conf
                     +")\n";
