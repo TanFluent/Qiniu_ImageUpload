@@ -20,24 +20,19 @@
             android:id="@+id/carame"
             android:layout_width="60dp"
             android:layout_height="60dp"
-            android:layout_alignParentLeft="true"
+            android:layout_alignParentRight="true"
             android:foreground="@drawable/icon_camera"
+            android:background="@drawable/shape_view_cart"
             />
 
         <Button
             android:id="@+id/select_img"
             android:layout_width="60dp"
             android:layout_height="60dp"
-            android:layout_marginLeft="20dp"
-            android:layout_toRightOf="@+id/carame"
+            android:layout_marginRight="20dp"
+            android:layout_toLeftOf="@+id/carame"
             android:foreground="@drawable/icon_album" />
 
-        <Button
-            android:id="@+id/upload_img"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:layout_alignParentRight="true"
-            android:foreground="@drawable/icon_upload" />
     </RelativeLayout>
 
 

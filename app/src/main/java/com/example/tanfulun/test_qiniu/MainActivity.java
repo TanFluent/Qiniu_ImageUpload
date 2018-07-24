@@ -58,7 +58,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static String Qiniu_Image_Server_URL = "http://pby8k3kvk.bkt.clouddn.com/";
 
     private static final String TAG = "MainActivity";
-    //private ImageView avatar_full_iv;
     private ImageView avatar_crop;
     private TextView result_tv;
 
@@ -68,7 +67,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final int GALLERY_ACTIVITY_CODE = 9;
     private Button fromCarame;
     private Button fromGarllary;
-    private Button upload;
 
     private Uri cameraImageUri=null; // 拍照获取的图片
     private String cameraImagePath;
@@ -76,8 +74,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String AlbumImagePath;
     private String recognition_results = null; // 图片识别返回的结果；
     private String pic_qiniu_url = null;
-
-    private String[] dataBaseClassNames;
 
     // 用于刷新界面
     private Handler mhandler = new Handler() {
@@ -111,15 +107,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        //avatar_full_iv = (ImageView) findViewById(R.id.avatar_full);
         avatar_crop = (ImageView) findViewById(R.id.avatar_crop);
         result_tv = (TextView)findViewById(R.id.results);
         fromCarame = (Button) findViewById(R.id.carame);
         fromCarame.setOnClickListener(this);
         fromGarllary = (Button) findViewById(R.id.select_img);
         fromGarllary.setOnClickListener(this);
-        upload = (Button) findViewById(R.id.upload_img);
-        upload.setOnClickListener(this);
         methodRequiresTwoPermission();
 
         // get class name list
@@ -434,14 +427,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 result_tv.setText("图片上传中...");
 
                 break;
-
-            case R.id.upload_img:
-                // 清空recognition_results
-                result_tv.setText("图片上传中...");
-
-                // 点击"上传图片"按钮
-                uploadImg2QiNiu();
-                break;
         }
 
     }
@@ -625,8 +610,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             in.close();
             res = EncodingUtils.getString(buffer, "UTF-8");
             String[] classNames = res.split("\n");
-
-            dataBaseClassNames = classNames;
 
             //Log.i("##tanfulun", "getClassName: res " + res);
             //Log.i("##tanfulun", "getClassName: res[0] " + classNames[0]);
