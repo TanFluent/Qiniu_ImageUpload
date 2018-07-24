@@ -558,8 +558,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private String parseResponse(String msg){
         String[] parsed_msg = null;
-        String[] parsed_msg_trim = null;
         String parsed_response = "";
+
+        ArrayList<String> arr_className = new ArrayList<>();
+        ArrayList<Float> arr_conf = new ArrayList<>();
 
         String msg1 = msg.replace("[","");
         String msg2 = msg1.replace("]","");
@@ -577,13 +579,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             for(String item : parsed_msg){
                 if(cnt>2){
                     if(cnt%2==0){
+                        arr_className.add(UnicodeUtils.unicodeToString(item));
+                        /*
                         parsed_response = parsed_response + UnicodeUtils.unicodeToString(item)
                                 +"("
                                 + conf
                                 +")\n";
+                        */
                     }else{
                         // 保留到小数点后两位
                         conf = item.substring(0,4);
+                        // string to float
+                        Float f_conf = Float.parseFloat(conf);
+
+                        arr_conf.add(f_conf);
                     }
 
                 }
@@ -593,6 +602,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Log.i("##tanfulun", "parseResponse:  status is not ok");
             return "超出识别范围,请重新上传";
         }
+
+        // sum conf values
+        Float sum_conf = new Float(0.0);
+        for(Float val : arr_conf){
+            sum_conf = sum_conf + val;
+        }
+        // norm conf values
+        for(int i=0, n=arr_conf.size(); i < n; i++){
+            Float norm_conf = arr_conf.get(i) / sum_conf;
+            String s_norm_conf = Float.toString(norm_conf).substring(0,4);
+
+
+            parsed_response = parsed_response + arr_className.get(0)
+                    +"("
+                    + s_norm_conf
+                    +")\n";
+        }
+
+
         return parsed_response;
     }
 
