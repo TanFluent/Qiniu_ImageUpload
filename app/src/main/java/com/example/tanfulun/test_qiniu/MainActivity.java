@@ -61,6 +61,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private static final String TAG = "MainActivity";
     private ImageView avatar_crop;
+
+    private TextView result_classname_tv;
+    private TextView result_taxid_tv;
+    private TextView result_taxrate_tv;
+    private TextView result_recognition_conf_tv;
+
+    private TextView classname_tv;
+    private TextView taxid_tv;
+    private TextView taxrate_tv;
+    private TextView recognition_conf_tv;
+
     private TextView result_tv;
 
     private static final int REQUEST_CAPTURE = 2;
@@ -74,7 +85,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String cameraImagePath;
     private Uri localUri = null; // 本地相册中，被选中的原始图片；
     private String AlbumImagePath;
-    private String recognition_results = null; // 图片识别返回的结果；
+
+    private String results_haiguan_classname = null;
+    private String results_taxid = null;
+    private String results_taxrate = null;
+    private String results_recognition = null;
+
+    private String recognition_results = null;
+
     private String pic_qiniu_url = null;
 
     // 用于刷新界面
@@ -83,7 +101,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         public void handleMessage(android.os.Message msg) {
             switch (msg.what) {
                 case 0x001:
-                    result_tv.setText(recognition_results);
+
+                    if(isHaiGuan){
+                        result_tv.setVisibility(View.INVISIBLE);
+                        setHaiGuanTVVisble();
+                        result_classname_tv.setText(results_haiguan_classname);
+                        result_taxid_tv.setText(results_taxid);
+                        result_taxrate_tv.setText(results_taxrate);
+                        result_recognition_conf_tv.setText(results_recognition);
+                    }else {
+                        result_tv.setText(recognition_results);
+                    }
+
                     Toast.makeText(MainActivity.this, "图片加载完毕", Toast.LENGTH_SHORT).show();
                     break;
                 case 0x002:
@@ -110,7 +139,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         avatar_crop = (ImageView) findViewById(R.id.avatar_crop);
-        result_tv = (TextView)findViewById(R.id.results);
+
+        result_tv = (TextView)findViewById(R.id.results_tv);
+
+        result_classname_tv = (TextView)findViewById(R.id.results_haiguan_class);
+        result_taxid_tv = (TextView)findViewById(R.id.results_tax_id);
+        result_taxrate_tv = (TextView)findViewById(R.id.results_tax_rate);
+        result_recognition_conf_tv = (TextView)findViewById(R.id.results_recognition);
+
+        classname_tv = (TextView)findViewById(R.id.haiguan_class);
+        taxid_tv = (TextView)findViewById(R.id.tax_id);
+        taxrate_tv = (TextView)findViewById(R.id.tax_rate);
+        recognition_conf_tv = (TextView)findViewById(R.id.recognition);
+
         fromCarame = (Button) findViewById(R.id.carame);
         fromCarame.setOnClickListener(this);
         fromGarllary = (Button) findViewById(R.id.select_img);
@@ -418,6 +459,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 // 清空recognition_results
                 result_tv.setText("图片上传中...");
+                result_tv.setVisibility(View.VISIBLE);
+                setHaiGuanTVInvisble();
 
                 break;
 
@@ -427,6 +470,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 // 清空recognition_results
                 result_tv.setText("图片上传中...");
+                result_tv.setVisibility(View.VISIBLE);
+                setHaiGuanTVInvisble();
 
                 break;
         }
@@ -553,7 +598,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                 //recognition_results = parseResponse(msg);
                 if(isHaiGuan){
-                    recognition_results = parseResponse_haiguan(msg);
+                    //recognition_results = parseResponse_haiguan(msg);
+                    parseResponse_haiguan(msg);
                 }else {
                     recognition_results = parseResponse(msg);
                 }
@@ -638,7 +684,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private String parseResponse_haiguan(String msg){
         String[] parsed_msg = null;
-        String parsed_response = "";
+        String parsed_classname_conf = "";
+        String parsed_taxid = "";
+        String parsed_taxrate = "";
+        String parsed_classname_haiguan = "";
 
         ArrayList<String> arr_className = new ArrayList<>();
         ArrayList<Float> arr_conf = new ArrayList<>();
@@ -685,10 +734,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         idx = idx + 1;
                     }else {
                         // 保留到小数点后两位
+                        String tmp_conf;
                         if(item.length()>4){
-                            item.substring(0,4);
+                            tmp_conf = item.substring(0,4);
+                        }else{
+                            tmp_conf = item;
                         }
-                        conf = item;
+                        conf = tmp_conf;
                         Log.i("##tanfulun", "conf: " + conf + " item:"+item);
                         // string to float
                         Float f_conf = Float.parseFloat(conf);
@@ -729,20 +781,33 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 s_norm_conf.substring(0,4);
             }
 
-            parsed_response = parsed_response
+            parsed_classname_haiguan = parsed_classname_haiguan
                     + arr_className_haiguan.get(i)
-                    + "-"
-                    + arr_TaxID.get(i)
-                    + "-"
-                    + arr_TaxRate.get(i)
-                    +"("
+                    + "\n";
+
+            parsed_classname_conf = parsed_classname_conf
                     + arr_className.get(i)
+                    + "("
                     + s_norm_conf
-                    +")\n";
+                    + ")"
+                    + "\n";
+
+            parsed_taxid = parsed_taxid
+                    + arr_TaxID.get(i)
+                    + "\n";
+
+            parsed_taxrate = parsed_taxrate
+                    + arr_TaxRate.get(i)
+                    + "\n";
         }
 
-        Log.i("##tanfulun", "parseResponse_haiguan: parsed_response--" + parsed_response);
-        return parsed_response;
+        results_haiguan_classname = parsed_classname_haiguan;
+        results_recognition = parsed_classname_conf;
+        results_taxid = parsed_taxid;
+        results_taxrate = parsed_taxrate;
+
+        //Log.i("##tanfulun", "parseResponse_haiguan: parsed_response--" + parsed_response);
+        return "";
     }
 
     private void getClassName(){
@@ -771,5 +836,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    private void setHaiGuanTVVisble(){
+        result_classname_tv.setVisibility(View.VISIBLE);
+        result_taxid_tv.setVisibility(View.VISIBLE);
+        result_taxrate_tv.setVisibility(View.VISIBLE);
+        result_recognition_conf_tv.setVisibility(View.VISIBLE);
+
+        classname_tv.setVisibility(View.VISIBLE);
+        taxid_tv.setVisibility(View.VISIBLE);
+        taxrate_tv.setVisibility(View.VISIBLE);
+        recognition_conf_tv.setVisibility(View.VISIBLE);
+    }
+
+    private void setHaiGuanTVInvisble(){
+        result_classname_tv.setVisibility(View.INVISIBLE);
+        result_taxid_tv.setVisibility(View.INVISIBLE);
+        result_taxrate_tv.setVisibility(View.INVISIBLE);
+        result_recognition_conf_tv.setVisibility(View.INVISIBLE);
+
+        classname_tv.setVisibility(View.INVISIBLE);
+        taxid_tv.setVisibility(View.INVISIBLE);
+        taxrate_tv.setVisibility(View.INVISIBLE);
+        recognition_conf_tv.setVisibility(View.INVISIBLE);
+    }
 }
 

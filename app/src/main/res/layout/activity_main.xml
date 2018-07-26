@@ -60,17 +60,150 @@
 
     </RelativeLayout>
 
-    <TextView
-        android:id="@+id/results"
+    <RelativeLayout
+        android:id="@+id/results_rl"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/image_preview_rl"
         android:layout_alignParentBottom="true"
-        android:layout_gravity="center"
-        android:layout_marginTop="5dp"
-        android:background="@android:color/darker_gray"
-        android:gravity="center"
-        android:text="拍摄图片或从相册中选择图片"
-        android:textSize="15dp" />
+        android:layout_below="@+id/image_preview_rl"
+        android:background="#d7d6d6"
+        >
+
+        <TextView
+            android:id="@+id/results_tv"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text="拍摄或上传图片"
+            android:visibility="gone"
+            android:textSize="20dp" />
+
+
+        <TextView
+            android:id="@+id/haiguan_class"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_alignParentStart="true"
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text="     物品类别     "
+            android:visibility="visible"
+            android:textStyle="bold"
+            android:textSize="15dp" />
+
+        <TextView
+            android:id="@+id/tax_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@+id/haiguan_class"
+            android:layout_gravity="center"
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text="    税号    "
+            android:textStyle="bold"
+            android:visibility="visible"
+            android:textSize="15dp" />
+
+        <TextView
+            android:id="@+id/tax_rate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@+id/tax_id"
+            android:layout_gravity="center"
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text=" 税率 "
+            android:visibility="visible"
+            android:textStyle="bold"
+            android:textSize="15dp" />
+
+        <TextView
+            android:id="@+id/recognition"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_gravity="center"
+            android:layout_toEndOf="@+id/tax_rate"
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text="识别结果(置信度)"
+            android:visibility="visible"
+            android:textStyle="bold"
+            android:textSize="15dp" />
+
+
+        <TextView
+            android:id="@+id/results_haiguan_class"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_below="@+id/haiguan_class"
+            android:layout_gravity="center"
+            android:layout_toEndOf="@+id/haiguan_class"
+            android:layout_toStartOf="@+id/haiguan_class"
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text="1"
+            android:textSize="15dp"
+            android:visibility="visible" />
+
+        <TextView
+            android:id="@+id/results_tax_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/tax_id"
+            android:layout_toStartOf="@+id/tax_id"
+            android:layout_toEndOf="@+id/tax_id"
+            android:layout_alignParentBottom="true"
+
+            android:layout_marginLeft="0dp"
+            android:layout_gravity="center"
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text="#2#"
+            android:visibility="visible"
+            android:textSize="15dp" />
+
+        <TextView
+            android:id="@+id/results_tax_rate"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_below="@+id/tax_rate"
+            android:layout_toStartOf="@+id/tax_rate"
+            android:layout_toEndOf="@+id/tax_rate"
+            android:layout_alignParentBottom="true"
+            android:layout_gravity="center"
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text="#3#"
+            android:visibility="visible"
+            android:textSize="15dp" />
+
+        <TextView
+            android:id="@+id/results_recognition"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:layout_below="@+id/recognition"
+            android:layout_toStartOf="@+id/recognition"
+            android:layout_toEndOf="@+id/recognition"
+            android:layout_alignParentBottom="true"
+
+            android:background="#d7d6d6"
+            android:gravity="center"
+            android:text="#4#"
+            android:visibility="visible"
+            android:textSize="15dp" />
+
+
+    </RelativeLayout>
+
+
 
 </RelativeLayout>
