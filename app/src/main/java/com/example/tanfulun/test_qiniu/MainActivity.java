@@ -57,6 +57,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static String SecretKey = "Iu5Vs4BMcC2HA3GVz5YmUxpwMYc2sSXX7Q4AvCxb";//此处填你自己的SecretKey
     private static String Qiniu_Image_Server_URL = "http://pby8k3kvk.bkt.clouddn.com/";
 
+    private static boolean isHaiGuan = true;
+
     private static final String TAG = "MainActivity";
     private ImageView avatar_crop;
     private TextView result_tv;
@@ -500,6 +502,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * */
     private void LoginByPost() {
         String LOGIN_URL = "http://47.93.252.203:8080/cnn_cls/vispred";
+
+        if(isHaiGuan){
+            LOGIN_URL = "http://47.93.252.203:8080/cnn_cls/vispred_zf";
+        }
+
         String TEST_URL = "http://47.93.252.203:8080/hello";
         String msg = "";
         try {
@@ -545,7 +552,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 msg = new String(message.toByteArray());
 
                 //recognition_results = parseResponse(msg);
-                recognition_results = parseResponse(msg);
+                if(isHaiGuan){
+                    recognition_results = parseResponse_haiguan(msg);
+                }else {
+                    recognition_results = parseResponse(msg);
+                }
+
             }
             else {
                 Log.i("##tanfulun", "LoginByPost: Post failed");
@@ -621,6 +633,115 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
 
+        return parsed_response;
+    }
+
+    private String parseResponse_haiguan(String msg){
+        String[] parsed_msg = null;
+        String parsed_response = "";
+
+        ArrayList<String> arr_className = new ArrayList<>();
+        ArrayList<Float> arr_conf = new ArrayList<>();
+        ArrayList<String> arr_TaxID = new ArrayList<>();
+        ArrayList<String> arr_className_haiguan = new ArrayList<>();
+        ArrayList<String> arr_TaxRate = new ArrayList<>();
+
+        String msg1 = msg.replace("[","");
+        String msg2 = msg1.replace("]","");
+        String msg3 = msg2.replace(":",",");
+        String msg4 = msg3.replace("{","");
+        String msg5 = msg4.replace("}","");
+        String msg6 = msg5.replace("\"","");
+
+        parsed_msg = msg6.trim().split("\\s*,\\s*");
+
+        int cnt = 0;
+        int idx = 0;
+        String conf = null;
+
+        Log.i("##tanfulun", "parseResponse_haiguan: parsed_msg--" + msg6);
+
+        if("ok".equals(parsed_msg[1])){
+            for(String item : parsed_msg){
+                if(cnt>2){
+
+                    if(idx == 0){
+                        arr_className.add(UnicodeUtils.unicodeToString(item));
+                        idx = idx + 1;
+                    }else if (idx == 1){
+                        arr_TaxID.add(item);
+                        idx = idx + 1;
+                    }else if (idx == 2){
+                        try{
+                            arr_className_haiguan.add(UnicodeUtils.unicodeToString(item));
+                        }catch (Exception e){
+                            Log.i("##tanfulun", "arr_className_haiguan: can't parse!");
+                            arr_className_haiguan.add(item);
+                        }
+                        idx = idx + 1;
+                    }else if (idx == 3){
+                        //String tmp = item.replace("%","%%");
+                        arr_TaxRate.add(item);
+                        idx = idx + 1;
+                    }else {
+                        // 保留到小数点后两位
+                        if(item.length()>4){
+                            item.substring(0,4);
+                        }
+                        conf = item;
+                        Log.i("##tanfulun", "conf: " + conf + " item:"+item);
+                        // string to float
+                        Float f_conf = Float.parseFloat(conf);
+
+                        arr_conf.add(f_conf);
+
+                        if (idx == 4){
+                            idx = 0;
+                        }else {
+                            return "Invalid msg!";
+                        }
+                    }
+
+                }
+                cnt = cnt + 1;
+            }
+        }else{
+            Log.i("##tanfulun", "parseResponse:  status is not ok");
+            return "超出识别范围,请重新上传";
+        }
+
+        // validate response
+        if(arr_conf.size()==0){
+            return "超出识别范围,请重新上传";
+        }
+
+        // sum conf values
+        Float sum_conf = new Float(0.0);
+        for(Float val : arr_conf){
+            sum_conf = sum_conf + val;
+        }
+        // norm conf values
+        for(int i=0, n=arr_conf.size(); i < n; i++){
+            Float norm_conf = arr_conf.get(i) / sum_conf;
+            String s_norm_conf = Float.toString(norm_conf);
+
+            if(s_norm_conf.length()>4){
+                s_norm_conf.substring(0,4);
+            }
+
+            parsed_response = parsed_response
+                    + arr_className_haiguan.get(i)
+                    + "-"
+                    + arr_TaxID.get(i)
+                    + "-"
+                    + arr_TaxRate.get(i)
+                    +"("
+                    + arr_className.get(i)
+                    + s_norm_conf
+                    +")\n";
+        }
+
+        Log.i("##tanfulun", "parseResponse_haiguan: parsed_response--" + parsed_response);
         return parsed_response;
     }
 
