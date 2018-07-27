@@ -787,6 +787,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // norm conf values
         for(int i=0, n=arr_conf.size(); i < n; i++){
             Float norm_conf = arr_conf.get(i) / sum_conf;
+            norm_conf = sigmoid(norm_conf);
             String s_norm_conf = Float.toString(norm_conf);
 
             String tmp_conf = s_norm_conf;
@@ -882,6 +883,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         rr2.setVisibility(View.INVISIBLE);
         rr3.setVisibility(View.INVISIBLE);
         rr4.setVisibility(View.INVISIBLE);
+    }
+
+    private static Float sigmoid(Float in_data){
+
+        double result;
+
+        result = 1/(1+Math.exp(-5*in_data));
+
+        return Float.valueOf((float) result);
     }
 }
 
