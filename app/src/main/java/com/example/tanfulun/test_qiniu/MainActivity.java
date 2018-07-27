@@ -19,6 +19,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -73,6 +74,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TextView recognition_conf_tv;
 
     private TextView result_tv;
+
+    private RelativeLayout rr1;
+    private RelativeLayout rr2;
+    private RelativeLayout rr3;
+    private RelativeLayout rr4;
+
 
     private static final int REQUEST_CAPTURE = 2;
     private static final int REQUEST_PICTURE = 5;
@@ -151,6 +158,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         taxid_tv = (TextView)findViewById(R.id.tax_id);
         taxrate_tv = (TextView)findViewById(R.id.tax_rate);
         recognition_conf_tv = (TextView)findViewById(R.id.recognition);
+
+        rr1 = (RelativeLayout)findViewById(R.id.rr1);
+        rr2 = (RelativeLayout)findViewById(R.id.rr2);
+        rr3 = (RelativeLayout)findViewById(R.id.rr3);
+        rr4 = (RelativeLayout)findViewById(R.id.rr4);
 
         fromCarame = (Button) findViewById(R.id.carame);
         fromCarame.setOnClickListener(this);
@@ -777,28 +789,30 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Float norm_conf = arr_conf.get(i) / sum_conf;
             String s_norm_conf = Float.toString(norm_conf);
 
+            String tmp_conf = s_norm_conf;
+
             if(s_norm_conf.length()>4){
-                s_norm_conf.substring(0,4);
+                tmp_conf = s_norm_conf.substring(0,4);
             }
 
             parsed_classname_haiguan = parsed_classname_haiguan
                     + arr_className_haiguan.get(i)
-                    + "\n";
+                    + "\n\n";
 
             parsed_classname_conf = parsed_classname_conf
                     + arr_className.get(i)
                     + "("
-                    + s_norm_conf
+                    + tmp_conf
                     + ")"
-                    + "\n";
+                    + "\n\n";
 
             parsed_taxid = parsed_taxid
                     + arr_TaxID.get(i)
-                    + "\n";
+                    + "\n\n";
 
             parsed_taxrate = parsed_taxrate
                     + arr_TaxRate.get(i)
-                    + "\n";
+                    + "\n\n";
         }
 
         results_haiguan_classname = parsed_classname_haiguan;
@@ -846,6 +860,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         taxid_tv.setVisibility(View.VISIBLE);
         taxrate_tv.setVisibility(View.VISIBLE);
         recognition_conf_tv.setVisibility(View.VISIBLE);
+
+        rr1.setVisibility(View.VISIBLE);
+        rr2.setVisibility(View.VISIBLE);
+        rr3.setVisibility(View.VISIBLE);
+        rr4.setVisibility(View.VISIBLE);
     }
 
     private void setHaiGuanTVInvisble(){
@@ -858,6 +877,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         taxid_tv.setVisibility(View.INVISIBLE);
         taxrate_tv.setVisibility(View.INVISIBLE);
         recognition_conf_tv.setVisibility(View.INVISIBLE);
+
+        rr1.setVisibility(View.INVISIBLE);
+        rr2.setVisibility(View.INVISIBLE);
+        rr3.setVisibility(View.INVISIBLE);
+        rr4.setVisibility(View.INVISIBLE);
     }
 }
 
